@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Damage Audit Image Dashboard</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #eef4ff 0%, #dbe7ff 48%, #efe7ff 100%);
+      min-height: 100vh;
+      padding: 14px;
+      color: #1f2937;
+    }
+
+    .container {
+      max-width: 1750px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.96);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 14px 42px rgba(37, 99, 235, 0.14), 0 6px 18px rgba(109, 40, 217, 0.08);
+      backdrop-filter: blur(8px);
+    }
+
+    header {
+      background: linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%);
+      color: white;
+      padding: 18px 22px;
+    }
+
+    header h1 {
+      font-size: 1.55rem;
+      margin-bottom: 4px;
+      font-weight: 850;
+    }
+
+    header p {
+      opacity: 0.9;
+      font-size: 0.88rem;
+    }
+
+    .main {
+      padding: 14px;
+    }
+
+    .loader {
+      padding: 28px;
+      text-align: center;
+      font-weight: 700;
+      color: #374151;
+    }
+
+    .filter-panel,
+    .kpi,
+    .gallery-card,
+    .table-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.98));
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      box-shadow: 0 8px 22px rgba(59, 130, 246, 0.08), 0 0 18px rgba(109, 40, 217, 0.05);
+    }
+
+    .filter-panel {
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .filter-title,
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 850;
+      color: #312e81;
+      margin-bottom: 10px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .chip-label {
+      font-size: 0.72rem;
+      font-weight: 850;
+      color: #6b7280;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 92px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #334155;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      box-shadow: 0 2px 7px rgba(0,0,0,0.04);
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chip:hover {
+      background: #eef2ff;
+      border-color: #818cf8;
+    }
+
+    .chip.active {
+      background: linear-gradient(135deg, #4f46e5, #2563eb);
+      color: white;
+      border-color: transparent;
+      font-weight: 750;
+      box-shadow: 0 0 0 2px rgba(99,102,241,0.10), 0 0 18px rgba(79,70,229,0.35);
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .search-box {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      padding: 10px 13px;
+      font-size: 0.88rem;
+      outline: none;
+      background: #ffffff;
+    }
+
+    .search-box:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+
+    .reset-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 850;
+      color: white;
+      cursor: pointer;
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      box-shadow: 0 5px 16px rgba(185, 28, 28, 0.18);
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .kpi {
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top right, rgba(96,165,250,0.18), transparent 42%);
+      pointer-events: none;
+    }
+
+    .kpi .label {
+      font-size: 0.68rem;
+      color: #6b7280;
+      font-weight: 850;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .kpi .value {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #111827;
+      margin-bottom: 2px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .kpi .sub {
+      font-size: 0.75rem;
+      color: #6b7280;
+      position: relative;
+      z-index: 1;
+    }
+
+    .gallery-card,
+    .table-card {
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .gallery-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .small-note {
+      font-size: 0.78rem;
+      color: #64748b;
+      font-weight: 650;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .damage-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+      display: flex;
+      min-height: 330px;
+    }
+
+    .card-left {
+      width: 44%;
+      min-width: 245px;
+      background: linear-gradient(135deg, #4f46e5, #2563eb);
+      color: white;
+      padding: 11px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      line-height: 1.25;
+      font-weight: 900;
+      margin-bottom: 8px;
+      word-break: break-word;
+      text-align: center;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      font-size: 0.75rem;
+      background: rgba(255,255,255,0.14);
+      border-radius: 10px;
+      padding: 9px;
+    }
+
+    .meta-row {
+      display: grid;
+      grid-template-columns: 16px 92px 1fr;
+      gap: 5px;
+      align-items: start;
+      line-height: 1.3;
+    }
+
+    .meta-row i {
+      opacity: 0.9;
+      margin-top: 2px;
+      font-size: 0.77rem;
+    }
+
+    .meta-row strong {
+      opacity: 0.92;
+    }
+
+    .meta-row span:last-child {
+      word-break: break-word;
+    }
+
+    .card-right {
+      flex: 1;
+      padding: 10px;
+      display: grid;
+      grid-template-rows: 190px 1fr;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .image-wrap {
+      border: 1px solid #eef2ff;
+      border-radius: 12px;
+      background: #f8fafc;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .image-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      transition: transform 0.22s ease;
+    }
+
+    .image-wrap:hover img {
+      transform: scale(1.025);
+    }
+
+    .image-tag {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(17, 24, 39, 0.76);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 800;
+    }
+
+    .no-image {
+      height: 100%;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #64748b;
+      font-size: 0.82rem;
+      font-style: italic;
+      padding: 14px;
+    }
+
+    .detail-box {
+      border: 1px solid #eef2ff;
+      border-radius: 12px;
+      padding: 9px;
+      overflow: auto;
+      background: linear-gradient(180deg, #ffffff, #f8fbff);
+    }
+
+    .product-line {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 10px;
+      margin-bottom: 8px;
+      font-size: 0.77rem;
+    }
+
+    .info-pill {
+      background: #eef2ff;
+      border: 1px solid #dbeafe;
+      color: #1e3a8a;
+      padding: 5px 7px;
+      border-radius: 9px;
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    .reason-block {
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: #374151;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 7px;
+    }
+
+    .reason-block strong {
+      color: #111827;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 420px;
+      border-radius: 10px;
+      border: 1px solid #edf2f7;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #eef2ff;
+      color: #312e81;
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #dbeafe;
+      white-space: nowrap;
+      z-index: 1;
+    }
+
+    tbody td {
+      padding: 8px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover {
+      background: #f8fbff;
+    }
+
+    .img-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .img-modal.active {
+      display: flex;
+    }
+
+    .img-modal-content {
+      position: relative;
+      width: 96vw;
+      height: 92vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .img-modal-stage {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .img-modal-stage img {
+      max-width: 92vw;
+      max-height: 86vh;
+      object-fit: contain;
+      border-radius: 10px;
+      background: white;
+      transform-origin: center center;
+      transition: transform 0.2s ease;
+    }
+
+    .img-close,
+    .img-rotate {
+      position: absolute;
+      border: none;
+      background: white;
+      color: #111827;
+      font-size: 1rem;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      z-index: 2;
+    }
+
+    .img-close {
+      top: 8px;
+      right: 8px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+    }
+
+    .img-rotate {
+      bottom: 10px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+    }
+
+    .img-rotate.left { left: calc(50% - 60px); }
+    .img-rotate.right { left: calc(50% + 14px); }
+
+    .footer-note {
+      margin-top: 8px;
+      text-align: right;
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    @media (max-width: 1250px) {
+      .gallery-grid { grid-template-columns: 1fr; }
+      .kpis { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 860px) {
+      body { padding: 8px; }
+      .filter-grid,
+      .kpis,
+      .product-line,
+      .search-row { grid-template-columns: 1fr; }
+      .damage-card { flex-direction: column; }
+      .card-left { width: 100%; min-width: 0; }
+      .card-right { grid-template-rows: 220px auto; }
+      .meta-row { grid-template-columns: 16px 92px 1fr; }
+      .reset-btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><i class="fa-solid fa-triangle-exclamation"></i> Damage Audit Image Dashboard</h1>
+      <p>Damage records with auditor, cluster, state, SKU, quantity, value, reason and image proof.</p>
+    </header>
+
+    <div class="main">
+      <div id="loader" class="loader">Loading Google Sheet data...</div>
+
+      <div id="dashboard" style="display:none;">
+        <div class="filter-panel">
+          <div class="filter-title">Filters</div>
+          <div class="filter-grid">
+            <div>
+              <div class="chip-label">ASM_Name</div>
+              <div id="asmChips" class="chips"></div>
+            </div>
+            <div>
+              <div class="chip-label">Main_Brand</div>
+              <div id="brandChips" class="chips"></div>
+            </div>
+            <div>
+              <div class="chip-label">Reason</div>
+              <div id="reasonChips" class="chips"></div>
+            </div>
+          </div>
+          <div class="search-row">
+            <input id="searchInput" class="search-box" placeholder="Search auditor, cluster, state, town, distributor, SKU, reason, remark..." />
+            <button id="resetBtn" class="reset-btn"><i class="fa-solid fa-rotate-right"></i> Reset</button>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi">
+            <div class="label">Total Records</div>
+            <div id="kpiRecords" class="value">0</div>
+            <div class="sub">Filtered entries</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Total Damage Value</div>
+            <div id="kpiDamage" class="value">₹0</div>
+            <div class="sub">Sum of damage value</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Total Quantity</div>
+            <div id="kpiQty" class="value">0</div>
+            <div class="sub">Sum of quantity</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Unique SKUs</div>
+            <div id="kpiSku" class="value">0</div>
+            <div class="sub">Filtered SKU count</div>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <div class="gallery-toolbar">
+            <div class="section-title" style="margin-bottom:0;">Image Gallery</div>
+            <div id="galleryNote" class="small-note"></div>
+          </div>
+          <div id="galleryGrid" class="gallery-grid"></div>
+        </div>
+
+        <div class="table-card">
+          <div class="section-title">Damage Data Table</div>
+          <div class="table-wrap">
+            <table id="dataTable">
+              <thead>
+                <tr>
+                  <th>Auditor</th>
+                  <th>Cluster</th>
+                  <th>State</th>
+                  <th>ASM</th>
+                  <th>Town</th>
+                  <th>Distributor</th>
+                  <th>Main Brand</th>
+                  <th>Category</th>
+                  <th>Type</th>
+                  <th>Flavor</th>
+                  <th>SKU</th>
+                  <th>Damage Value</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Reason</th>
+                  <th>Other Reason</th>
+                  <th>Remark</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="lastUpdated" class="footer-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="imgModal" class="img-modal">
+    <div class="img-modal-content">
+      <button id="imgCloseBtn" class="img-close">&times;</button>
+      <button id="rotateLeftBtn" class="img-rotate left"><i class="fa-solid fa-rotate-left"></i></button>
+      <button id="rotateRightBtn" class="img-rotate right"><i class="fa-solid fa-rotate-right"></i></button>
+      <div class="img-modal-stage">
+        <img id="imgModalView" src="" alt="Preview">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SHEET_ID = "1JVyX0Ff5Ngl4Hf5fi1t1QpRC-PpUIHyQSRqCP3YNCBI";
+    const GID = "15232550";
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+
+    const fields = {
+      auditor: "Auditor_Name",
+      cluster: "Cluster",
+      state: "State",
+      asm: "ASM_Name",
+      town: "Town",
+      distributor: "Distributor_Code",
+      lat: "lat",
+      long: "long",
+      brand: "Main_Brand",
+      category: "Category",
+      type: "Type",
+      flavor: "Flavor",
+      sku: "SKU",
+      damage: "Damage Value",
+      qty: "Quantity",
+      unit: "Unit",
+      reason: "Reason",
+      otherReason: "Other_Reason_Text",
+      remark: "Remark",
+      photo: "Photo_link",
+      timestamp: "Timestamp"
+    };
+
+    let rawData = [];
+    let filteredData = [];
+    let currentRotation = 0;
+
+    const activeFilters = {
+      asm: "All",
+      brand: "All",
+      reason: "All"
+    };
+
+    function safeText(v) {
+      return v === null || v === undefined ? "" : String(v).trim();
+    }
+
+    function escapeHtml(v) {
+      return safeText(v)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function toNumber(v) {
+      const num = parseFloat(String(v || "").replace(/,/g, "").trim());
+      return isNaN(num) ? 0 : num;
+    }
+
+    function formatNumber(v) {
+      return Number(v || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+    }
+
+    function formatCurrency(v) {
+      return "₹" + Number(v || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+    }
+
+    function uniqueSorted(arr) {
+      return ["All", ...Array.from(new Set(arr.map(safeText).filter(Boolean))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))];
+    }
+
+    function normalizeRows(rows) {
+      return rows
+        .filter(row => Object.values(row).some(v => safeText(v) !== ""))
+        .map(row => {
+          const out = {};
+          Object.keys(row).forEach(k => out[k.trim()] = row[k]);
+          return out;
+        });
+    }
+
+    function convertDriveLink(link) {
+      if (!link || safeText(link) === "") return null;
+      const raw = safeText(link);
+
+      if (raw.includes("drive.google.com/thumbnail?id=")) return raw;
+      if (raw.match(/\.(png|jpg|jpeg|webp|gif)(\?.*)?$/i)) return raw;
+
+      let fileId = null;
+      const patterns = [
+        /\/d\/([^\/\?]+)/,
+        /id=([^&]+)/,
+        /\/file\/d\/([^\/\?]+)/,
+        /open\?id=([^&]+)/
+      ];
+
+      for (const pattern of patterns) {
+        const match = raw.match(pattern);
+        if (match && match[1]) {
+          fileId = match[1];
+          break;
+        }
+      }
+
+      if (!fileId) return raw;
+      return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1400`;
+    }
+
+    function applyFilterSet(data, ignoreKey = null) {
+      const q = safeText(document.getElementById("searchInput")?.value).toLowerCase();
+      return data.filter(row => {
+        const asmOk = ignoreKey === "asm" || activeFilters.asm === "All" || safeText(row[fields.asm]) === activeFilters.asm;
+        const brandOk = ignoreKey === "brand" || activeFilters.brand === "All" || safeText(row[fields.brand]) === activeFilters.brand;
+        const reasonOk = ignoreKey === "reason" || activeFilters.reason === "All" || safeText(row[fields.reason]) === activeFilters.reason;
+
+        let searchOk = true;
+        if (q) {
+          const haystack = [
+            fields.auditor, fields.cluster, fields.state, fields.asm, fields.town,
+            fields.distributor, fields.brand, fields.category, fields.type, fields.flavor,
+            fields.sku, fields.damage, fields.qty, fields.unit, fields.reason,
+            fields.otherReason, fields.remark, fields.timestamp
+          ].map(f => safeText(row[f]).toLowerCase()).join(" | ");
+          searchOk = haystack.includes(q);
+        }
+
+        return asmOk && brandOk && reasonOk && searchOk;
+      });
+    }
+
+    function getAvailableValues(filterKey) {
+      const base = applyFilterSet(rawData, filterKey);
+      if (filterKey === "asm") return uniqueSorted(base.map(d => d[fields.asm]));
+      if (filterKey === "brand") return uniqueSorted(base.map(d => d[fields.brand]));
+      if (filterKey === "reason") return uniqueSorted(base.map(d => d[fields.reason]));
+      return ["All"];
+    }
+
+    function renderChips(containerId, values, filterKey) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = values.map(v => {
+        const activeClass = activeFilters[filterKey] === v ? "chip active" : "chip";
+        return `<button class="${activeClass}" title="${escapeHtml(v)}" data-filter="${filterKey}" data-value="${escapeHtml(v)}">${escapeHtml(v)}</button>`;
+      }).join("");
+
+      container.querySelectorAll(".chip").forEach(btn => {
+        btn.addEventListener("click", function() {
+          activeFilters[filterKey] = this.dataset.value;
+          applyFilters();
+        });
+      });
+    }
+
+    function cleanInvalidSelections() {
+      ["asm", "brand", "reason"].forEach(key => {
+        const allowed = getAvailableValues(key);
+        if (!allowed.includes(activeFilters[key])) activeFilters[key] = "All";
+      });
+    }
+
+    function renderAllChips() {
+      renderChips("asmChips", getAvailableValues("asm"), "asm");
+      renderChips("brandChips", getAvailableValues("brand"), "brand");
+      renderChips("reasonChips", getAvailableValues("reason"), "reason");
+    }
+
+    function applyFilters() {
+      cleanInvalidSelections();
+      filteredData = applyFilterSet(rawData);
+      renderAllChips();
+      renderDashboard(filteredData);
+    }
+
+    function renderKPIs(data) {
+      const totalDamage = data.reduce((sum, d) => sum + toNumber(d[fields.damage]), 0);
+      const totalQty = data.reduce((sum, d) => sum + toNumber(d[fields.qty]), 0);
+      const uniqueSkus = new Set(data.map(d => safeText(d[fields.sku])).filter(Boolean)).size;
+
+      document.getElementById("kpiRecords").textContent = formatNumber(data.length);
+      document.getElementById("kpiDamage").textContent = formatCurrency(totalDamage);
+      document.getElementById("kpiQty").textContent = formatNumber(totalQty);
+      document.getElementById("kpiSku").textContent = formatNumber(uniqueSkus);
+    }
+
+    function imageBlock(url, title) {
+      if (!url) {
+        return `<div class="no-image"><i class="fa-regular fa-image" style="margin-right:7px;"></i> Image not available</div>`;
+      }
+      const safeUrl = escapeHtml(url);
+      const safeTitle = escapeHtml(title || "Damage photo");
+      return `
+        <div class="image-wrap" onclick="openImageModal('${safeUrl}')">
+          <span class="image-tag"><i class="fa-solid fa-camera"></i> Photo Proof</span>
+          <img src="${safeUrl}" alt="${safeTitle}" loading="lazy" referrerpolicy="no-referrer"
+               onerror="this.onerror=null; this.src='https://via.placeholder.com/900x600/e5e7eb/475569?text=Image+Not+Available';">
+        </div>
+      `;
+    }
+
+    function renderGallery(data) {
+      const gallery = document.getElementById("galleryGrid");
+      document.getElementById("galleryNote").textContent = `${formatNumber(data.length)} cards shown | 2 cards per row on desktop`;
+
+      if (!data.length) {
+        gallery.innerHTML = `
+          <div style="grid-column:1/-1;text-align:center;padding:30px;color:#64748b;">
+            <i class="fa-solid fa-filter-circle-xmark" style="font-size:2rem;margin-bottom:10px;opacity:0.55;"></i>
+            <h3 style="font-size:1rem;">No records found for selected filters</h3>
+          </div>`;
+        return;
+      }
+
+      gallery.innerHTML = data.map((d, idx) => {
+        const title = safeText(d[fields.sku]) || safeText(d[fields.brand]) || `Record ${idx + 1}`;
+        const photo = convertDriveLink(d[fields.photo]);
+        const mapLink = safeText(d[fields.lat]) && safeText(d[fields.long])
+          ? `https://www.google.com/maps?q=${encodeURIComponent(safeText(d[fields.lat]))},${encodeURIComponent(safeText(d[fields.long]))}`
+          : "";
+
+        return `
+          <div class="damage-card">
+            <div class="card-left">
+              <div>
+                <div class="card-title">${escapeHtml(title)}</div>
+                <div class="meta-grid">
+                  <div class="meta-row"><i class="fa-solid fa-user-check"></i><strong>Auditor</strong><span>${escapeHtml(d[fields.auditor]) || "-"}</span></div>
+                  <div class="meta-row"><i class="fa-solid fa-layer-group"></i><strong>Cluster</strong><span>${escapeHtml(d[fields.cluster]) || "-"}</span></div>
+                  <div class="meta-row"><i class="fa-solid fa-map"></i><strong>State</strong><span>${escapeHtml(d[fields.state]) || "-"}</span></div>
+                  <div class="meta-row"><i class="fa-solid fa-user-tie"></i><strong>ASM</strong><span>${escapeHtml(d[fields.asm]) || "-"}</span></div>
+                  <div class="meta-row"><i class="fa-solid fa-city"></i><strong>Town</strong><span>${escapeHtml(d[fields.town]) || "-"}</span></div>
+                  <div class="meta-row"><i class="fa-solid fa-warehouse"></i><strong>Distributor</strong><span>${escapeHtml(d[fields.distributor]) || "-"}</span></div>
+                  ${mapLink ? `<div class="meta-row"><i class="fa-solid fa-location-dot"></i><strong>Location</strong><span><a href="${mapLink}" target="_blank" style="color:white;font-weight:800;">Open Map</a></span></div>` : ""}
+                  <div class="meta-row"><i class="fa-regular fa-clock"></i><strong>Time</strong><span>${escapeHtml(d[fields.timestamp]) || "-"}</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-right">
+              ${imageBlock(photo, title)}
+              <div class="detail-box">
+                <div class="product-line">
+                  <div class="info-pill"><strong>Cluster:</strong> ${escapeHtml(d[fields.cluster]) || "-"}</div>
+                  <div class="info-pill"><strong>State:</strong> ${escapeHtml(d[fields.state]) || "-"}</div>
+                  <div class="info-pill"><strong>Main Brand:</strong> ${escapeHtml(d[fields.brand]) || "-"}</div>
+                  <div class="info-pill"><strong>Category:</strong> ${escapeHtml(d[fields.category]) || "-"}</div>
+                  <div class="info-pill"><strong>Type:</strong> ${escapeHtml(d[fields.type]) || "-"}</div>
+                  <div class="info-pill"><strong>Flavor:</strong> ${escapeHtml(d[fields.flavor]) || "-"}</div>
+                  <div class="info-pill"><strong>SKU:</strong> ${escapeHtml(d[fields.sku]) || "-"}</div>
+                  <div class="info-pill"><strong>Damage Value:</strong> ${formatCurrency(toNumber(d[fields.damage]))}</div>
+                  <div class="info-pill"><strong>Quantity:</strong> ${formatNumber(toNumber(d[fields.qty]))}</div>
+                  <div class="info-pill"><strong>Unit:</strong> ${escapeHtml(d[fields.unit]) || "-"}</div>
+                </div>
+                <div class="reason-block">
+                  <div><strong>Reason:</strong> ${escapeHtml(d[fields.reason]) || "-"}</div>
+                  <div><strong>Other Reason:</strong> ${escapeHtml(d[fields.otherReason]) || "-"}</div>
+                  <div><strong>Remark:</strong> ${escapeHtml(d[fields.remark]) || "-"}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderTable(data) {
+      const tbody = document.querySelector("#dataTable tbody");
+      tbody.innerHTML = data.map(d => `
+        <tr>
+          <td>${escapeHtml(d[fields.auditor])}</td>
+          <td>${escapeHtml(d[fields.cluster])}</td>
+          <td>${escapeHtml(d[fields.state])}</td>
+          <td>${escapeHtml(d[fields.asm])}</td>
+          <td>${escapeHtml(d[fields.town])}</td>
+          <td>${escapeHtml(d[fields.distributor])}</td>
+          <td>${escapeHtml(d[fields.brand])}</td>
+          <td>${escapeHtml(d[fields.category])}</td>
+          <td>${escapeHtml(d[fields.type])}</td>
+          <td>${escapeHtml(d[fields.flavor])}</td>
+          <td>${escapeHtml(d[fields.sku])}</td>
+          <td>${formatCurrency(toNumber(d[fields.damage]))}</td>
+          <td>${formatNumber(toNumber(d[fields.qty]))}</td>
+          <td>${escapeHtml(d[fields.unit])}</td>
+          <td>${escapeHtml(d[fields.reason])}</td>
+          <td>${escapeHtml(d[fields.otherReason])}</td>
+          <td>${escapeHtml(d[fields.remark])}</td>
+          <td>${escapeHtml(d[fields.timestamp])}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderDashboard(data) {
+      renderKPIs(data);
+      renderGallery(data);
+      renderTable(data);
+      document.getElementById("lastUpdated").textContent = `Refreshed on ${new Date().toLocaleString()}`;
+    }
+
+    function loadSheetData() {
+      Papa.parse(CSV_URL, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          rawData = normalizeRows(results.data);
+          filteredData = [...rawData];
+
+          document.getElementById("loader").style.display = "none";
+          document.getElementById("dashboard").style.display = "block";
+
+          renderAllChips();
+          renderDashboard(filteredData);
+        },
+        error: function(err) {
+          document.getElementById("loader").innerHTML = `
+            Failed to load Google Sheet data.<br><br>
+            Check whether the Google Sheet is shared as <strong>Anyone with the link can view</strong> and confirm the Sheet ID/GID.<br>
+            <span style="color:#b91c1c;">${escapeHtml(err)}</span>
+          `;
+        }
+      });
+    }
+
+    function applyImageRotation() {
+      const img = document.getElementById("imgModalView");
+      img.style.transform = `rotate(${currentRotation}deg)`;
+    }
+
+    function openImageModal(src) {
+      const modal = document.getElementById("imgModal");
+      const img = document.getElementById("imgModalView");
+      currentRotation = 0;
+      img.src = src;
+      applyImageRotation();
+      modal.classList.add("active");
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById("imgModal");
+      const img = document.getElementById("imgModalView");
+      modal.classList.remove("active");
+      img.src = "";
+      currentRotation = 0;
+      applyImageRotation();
+    }
+
+    document.getElementById("rotateLeftBtn").addEventListener("click", function(e) {
+      e.stopPropagation();
+      currentRotation -= 90;
+      applyImageRotation();
+    });
+
+    document.getElementById("rotateRightBtn").addEventListener("click", function(e) {
+      e.stopPropagation();
+      currentRotation += 90;
+      applyImageRotation();
+    });
+
+    document.getElementById("imgCloseBtn").addEventListener("click", closeImageModal);
+    document.getElementById("imgModal").addEventListener("click", function(e) {
+      if (e.target.id === "imgModal") closeImageModal();
+    });
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape") closeImageModal();
+      if (document.getElementById("imgModal").classList.contains("active")) {
+        if (e.key === "ArrowLeft") {
+          currentRotation -= 90;
+          applyImageRotation();
+        }
+        if (e.key === "ArrowRight") {
+          currentRotation += 90;
+          applyImageRotation();
+        }
+      }
+    });
+
+    document.getElementById("searchInput").addEventListener("input", applyFilters);
+    document.getElementById("resetBtn").addEventListener("click", function() {
+      activeFilters.asm = "All";
+      activeFilters.brand = "All";
+      activeFilters.reason = "All";
+      document.getElementById("searchInput").value = "";
+      applyFilters();
+    });
+
+    loadSheetData();
+  </script>
+</body>
+</html>
